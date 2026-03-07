@@ -2,36 +2,54 @@ import streamlit as st
 import numpy as np
 import pickle
 
-# Function required for loading the pickle model
+# ------------------------------
+# Prior probability correction
+# ------------------------------
+
 def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
     numerator = p_model * (real_prior / train_prior)
     denominator = numerator + ((1 - p_model) * ((1 - real_prior) / (1 - train_prior)))
     return numerator / denominator
 
 
-st.title("Credit Risk Scorecard — IFRS 9 Demo")
+st.set_page_config(page_title="Credit Risk Scorecard", layout="centered")
+
+st.title("🏦 Credit Risk Scorecard — IFRS 9 Demo")
 
 st.write(
-    "Enter borrower details to predict Probability of Default (PD), Credit Score, and Loan Decision."
+"""
+Enter borrower details to estimate:
+
+• Probability of Default (PD)  
+• Credit Score  
+• Loan Decision
+"""
 )
 
-# Load model and scaler
-with open("pd_model_final.pkl", "rb") as f:
-    model_data = pickle.load(f)
+# ------------------------------
+# Load Model
+# ------------------------------
 
-model = model_data["model"]
-scaler = model_data["scaler"]
+@st.cache_resource
+def load_model():
+    with open("pd_model_final.pkl", "rb") as f:
+        model_data = pickle.load(f)
+
+    return model_data["model"], model_data["scaler"]
 
 
-# -------------------------------
-# User Inputs
-# -------------------------------
+model, scaler = load_model()
+
+
+# ------------------------------
+# Inputs
+# ------------------------------
 
 age = st.slider("Age", 18, 80, 35)
 
 credit_utilization = st.slider(
     "Revolving Credit Utilization",
-    0.0, 1.0, 0.30
+    0.0, 1.0, 0.3
 )
 
 late_30 = st.number_input(
@@ -64,70 +82,82 @@ open_loans = st.number_input(
     0, 20, 5
 )
 
-real_estate_loans = st.number_input(
-    "Real Estate Loans",
-    0, 10, 1
-)
-
 dependents = st.number_input(
     "Number of Dependents",
     0, 10, 1
 )
 
-
-# -------------------------------
+# ------------------------------
 # Prediction
-# -------------------------------
+# ------------------------------
 
 if st.button("Predict Credit Risk"):
 
-    # Feature engineering
+    # Feature engineering (same as notebook)
+
     total_delinquency = late_30 + (2 * late_60) + (3 * late_90)
 
+    income_per_dependent = monthly_income / (dependents + 1)
+
+    dti_ratio = debt_ratio
+
+    credit_burden = credit_utilization * debt_ratio
+
+    # Feature order MUST match training
+
     input_data = np.array([[
+        total_delinquency,
         credit_utilization,
-        age,
         late_30,
-        debt_ratio,
+        age,
+        income_per_dependent,
         monthly_income,
+        debt_ratio,
+        dti_ratio,
         open_loans,
-        late_90,
-        real_estate_loans,
-        late_60,
-        dependents,
-        total_delinquency
+        credit_burden,
+        dependents
     ]])
 
     # Scale features
+
     input_scaled = scaler.transform(input_data)
 
     # Predict PD
+
     pd_model = model.predict_proba(input_scaled)[0][1]
 
-    # Apply prior probability correction
     pd_prob = prior_correction(pd_model)
 
-    # Convert PD to credit score
+    # Credit score conversion
+
     score = int(600 + (1 - pd_prob) * 200)
 
-    # Risk decision
     if score >= 700:
         decision = "Approved"
         risk = "Low Risk"
+
     elif score >= 580:
         decision = "Conditional Approval"
         risk = "Medium Risk"
+
     else:
         decision = "Declined"
         risk = "High Risk"
 
-    # -------------------------------
-    # Display Results
-    # -------------------------------
+    # ------------------------------
+    # Results
+    # ------------------------------
+
+    st.markdown("---")
 
     st.subheader("Prediction Result")
 
-    st.write(f"**Probability of Default:** {pd_prob:.2%}")
-    st.write(f"**Credit Score:** {score}")
-    st.write(f"**Risk Category:** {risk}")
-    st.write(f"**Loan Decision:** {decision}")
+    col1, col2 = st.columns(2)
+
+    col1.metric("Probability of Default", f"{pd_prob:.2%}")
+    col2.metric("Credit Score", score)
+
+    st.write(f"Risk Category: **{risk}**")
+
+    st.write(f"Decision: **{decision}**")
