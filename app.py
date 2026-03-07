@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pickle
 
+
 # ------------------------------
 # Prior probability correction
 # ------------------------------
@@ -11,6 +12,10 @@ def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
     denominator = numerator + ((1 - p_model) * ((1 - real_prior) / (1 - train_prior)))
     return numerator / denominator
 
+
+# ------------------------------
+# Page Config
+# ------------------------------
 
 st.set_page_config(page_title="Credit Risk Scorecard", layout="centered")
 
@@ -26,16 +31,21 @@ Enter borrower details to estimate:
 """
 )
 
+
 # ------------------------------
 # Load Model
 # ------------------------------
 
 @st.cache_resource
 def load_model():
+
     with open("pd_model_final.pkl", "rb") as f:
         model_data = pickle.load(f)
 
-    return model_data["model"], model_data["scaler"]
+    model = model_data["model"]
+    scaler = model_data["scaler"]
+
+    return model, scaler
 
 
 model, scaler = load_model()
@@ -87,6 +97,7 @@ dependents = st.number_input(
     0, 10, 1
 )
 
+
 # ------------------------------
 # Prediction
 # ------------------------------
@@ -103,9 +114,11 @@ if st.button("Predict Credit Risk"):
 
     credit_burden = credit_utilization * debt_ratio
 
+
     # Feature order MUST match training
 
     input_data = np.array([[
+
         total_delinquency,
         credit_utilization,
         late_30,
@@ -117,11 +130,14 @@ if st.button("Predict Credit Risk"):
         open_loans,
         credit_burden,
         dependents
+
     ]])
+
 
     # Scale features
 
     input_scaled = scaler.transform(input_data)
+
 
     # Predict PD
 
@@ -129,9 +145,11 @@ if st.button("Predict Credit Risk"):
 
     pd_prob = prior_correction(pd_model)
 
+
     # Credit score conversion
 
     score = int(600 + (1 - pd_prob) * 200)
+
 
     if score >= 700:
         decision = "Approved"
@@ -144,6 +162,7 @@ if st.button("Predict Credit Risk"):
     else:
         decision = "Declined"
         risk = "High Risk"
+
 
     # ------------------------------
     # Results
