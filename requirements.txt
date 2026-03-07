@@ -1,7 +1,7 @@
 streamlit
-pandas
 numpy
-scikit-learn
+pandas
+scikit-learn==1.6.1
 shap
 imbalanced-learn
 matplotlib
