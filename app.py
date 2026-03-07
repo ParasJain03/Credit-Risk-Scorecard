@@ -1,25 +1,37 @@
 import streamlit as st
 import numpy as np
 import pickle
+
+# Function required for loading the pickle model
 def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
     numerator = p_model * (real_prior / train_prior)
     denominator = numerator + ((1 - p_model) * ((1 - real_prior) / (1 - train_prior)))
     return numerator / denominator
 
+
 st.title("Credit Risk Scorecard — IFRS 9 Demo")
 
-st.write("Enter borrower details to predict Probability of Default and Credit Score.")
+st.write(
+    "Enter borrower details to predict Probability of Default (PD), Credit Score, and Loan Decision."
+)
 
-# Load trained model
+# Load model and scaler
 with open("pd_model_final.pkl", "rb") as f:
-    model = pickle.load(f)
+    model_data = pickle.load(f)
 
-# Inputs
+model = model_data["model"]
+scaler = model_data["scaler"]
+
+
+# -------------------------------
+# User Inputs
+# -------------------------------
+
 age = st.slider("Age", 18, 80, 35)
 
 credit_utilization = st.slider(
     "Revolving Credit Utilization",
-    0.0, 1.0, 0.3
+    0.0, 1.0, 0.30
 )
 
 late_30 = st.number_input(
@@ -62,9 +74,14 @@ dependents = st.number_input(
     0, 10, 1
 )
 
-# Predict
+
+# -------------------------------
+# Prediction
+# -------------------------------
+
 if st.button("Predict Credit Risk"):
 
+    # Feature engineering
     total_delinquency = late_30 + (2 * late_60) + (3 * late_90)
 
     input_data = np.array([[
@@ -81,10 +98,19 @@ if st.button("Predict Credit Risk"):
         total_delinquency
     ]])
 
-    pd_prob = model.predict_proba(input_data)[0][1]
+    # Scale features
+    input_scaled = scaler.transform(input_data)
 
+    # Predict PD
+    pd_model = model.predict_proba(input_scaled)[0][1]
+
+    # Apply prior probability correction
+    pd_prob = prior_correction(pd_model)
+
+    # Convert PD to credit score
     score = int(600 + (1 - pd_prob) * 200)
 
+    # Risk decision
     if score >= 700:
         decision = "Approved"
         risk = "Low Risk"
@@ -95,9 +121,13 @@ if st.button("Predict Credit Risk"):
         decision = "Declined"
         risk = "High Risk"
 
+    # -------------------------------
+    # Display Results
+    # -------------------------------
+
     st.subheader("Prediction Result")
 
-    st.write(f"Probability of Default: {pd_prob:.2%}")
-    st.write(f"Credit Score: {score}")
-    st.write(f"Risk Category: {risk}")
-    st.write(f"Decision: {decision}")
+    st.write(f"**Probability of Default:** {pd_prob:.2%}")
+    st.write(f"**Credit Score:** {score}")
+    st.write(f"**Risk Category:** {risk}")
+    st.write(f"**Loan Decision:** {decision}")
