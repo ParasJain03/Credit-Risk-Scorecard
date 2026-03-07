@@ -1,6 +1,10 @@
 import streamlit as st
 import numpy as np
 import pickle
+def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
+    numerator = p_model * (real_prior / train_prior)
+    denominator = numerator + ((1 - p_model) * ((1 - real_prior) / (1 - train_prior)))
+    return numerator / denominator
 
 st.title("Credit Risk Scorecard — IFRS 9 Demo")
 
