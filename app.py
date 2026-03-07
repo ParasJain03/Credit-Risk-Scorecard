@@ -49,7 +49,7 @@ def load_model():
 
 
 model, scaler = load_model()
-
+st.write("Model coefficients:", model.coef_)
 
 # ------------------------------
 # Inputs
