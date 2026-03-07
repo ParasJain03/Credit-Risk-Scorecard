@@ -104,7 +104,7 @@ dependents = st.number_input(
 
 if st.button("Predict Credit Risk"):
 
-    # Feature engineering (same as notebook)
+    # Feature engineering
 
     total_delinquency = late_30 + (2 * late_60) + (3 * late_90)
 
@@ -115,7 +115,7 @@ if st.button("Predict Credit Risk"):
     credit_burden = credit_utilization * debt_ratio
 
 
-    # Feature order MUST match training
+    # Feature order must match training notebook
 
     input_data = np.array([[
 
@@ -146,16 +146,22 @@ if st.button("Predict Credit Risk"):
     pd_prob = prior_correction(pd_model)
 
 
-    # Credit score conversion
+    # ------------------------------
+    # Credit Score Conversion
+    # ------------------------------
 
-    score = int(600 + (1 - pd_prob) * 200)
+    score = int(300 + (1 - pd_prob) * 550)
 
 
-    if score >= 700:
+    # ------------------------------
+    # Risk Decision
+    # ------------------------------
+
+    if score >= 720:
         decision = "Approved"
         risk = "Low Risk"
 
-    elif score >= 580:
+    elif score >= 600:
         decision = "Conditional Approval"
         risk = "Medium Risk"
 
