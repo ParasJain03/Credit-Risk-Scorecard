@@ -292,17 +292,22 @@ Although Stage-3 loans are only **7.5% of the portfolio**, they generate **73% o
 # Repository Structure
 
 ```
-Credit-Risk-Scorecard/
-│
-├── Credit_Risk_Scorecard_ParasJain.ipynb
-├── pd_model_final.pkl
-├── fig1_eda.png
-├── fig2_woe.png
-├── fig3_model_performance.png
-├── fig4_shap.png
-├── fig5_calibration.png
-├── fig6_ecl.png
-└── README.md
+Credit-Risk-Scorecard
+
+app.py
+requirements.txt
+pd_model_final.pkl
+
+Credit_Risk_Scorecard_ParasJain.ipynb
+
+fig1_eda.png
+fig2_woe.png
+fig3_model_performance.png
+fig4_shap.png
+fig5_calibration.png
+fig6_ecl.png
+
+README.md
 ```
 
 ---
