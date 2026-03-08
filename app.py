@@ -1,7 +1,8 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
 import pickle
+import pandas as pd
+import plotly.graph_objects as go
 
 
 # ------------------------------
@@ -9,13 +10,8 @@ import pickle
 # ------------------------------
 
 def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
-
     numerator = p_model * (real_prior / train_prior)
-
-    denominator = numerator + (
-        (1 - p_model) * ((1 - real_prior) / (1 - train_prior))
-    )
-
+    denominator = numerator + ((1 - p_model) * ((1 - real_prior) / (1 - train_prior)))
     return numerator / denominator
 
 
@@ -23,11 +19,7 @@ def prior_correction(p_model, real_prior=0.0668, train_prior=0.5):
 # Page Config
 # ------------------------------
 
-st.set_page_config(
-    page_title="Credit Risk Scorecard",
-    page_icon="🏦",
-    layout="centered"
-)
+st.set_page_config(page_title="Credit Risk Scorecard", layout="centered")
 
 st.title("🏦 Credit Risk Scorecard — IFRS 9 Demo")
 
@@ -35,9 +27,9 @@ st.write(
 """
 Enter borrower details to estimate:
 
-• **Probability of Default (PD)**  
-• **Credit Score (300-900)**  
-• **Loan Decision**
+• Probability of Default (PD)  
+• Credit Score  
+• Loan Decision
 """
 )
 
@@ -62,10 +54,8 @@ model, scaler = load_model()
 
 
 # ------------------------------
-# User Inputs
+# Inputs
 # ------------------------------
-
-st.subheader("Borrower Information")
 
 age = st.slider("Age", 18, 80, 35)
 
@@ -116,11 +106,7 @@ dependents = st.number_input(
 
 if st.button("Predict Credit Risk"):
 
-
-    # ------------------------------
-    # Feature Engineering
-    # (Must match training notebook)
-    # ------------------------------
+    # Feature engineering
 
     total_delinquency = late_30 + (2 * late_60) + (3 * late_90)
 
@@ -128,12 +114,10 @@ if st.button("Predict Credit Risk"):
 
     dti_ratio = debt_ratio
 
-    credit_burden = open_loans / (monthly_income / 1000 + 1)
+    credit_burden = credit_utilization * debt_ratio
 
 
-    # ------------------------------
-    # Model Input
-    # ------------------------------
+    # Feature order must match training
 
     input_data = np.array([[
 
@@ -151,19 +135,12 @@ if st.button("Predict Credit Risk"):
 
     ]])
 
+    # Scale features
 
-    # Convert to DataFrame to keep feature names
-
-    feature_names = scaler.feature_names_in_
-
-    input_df = pd.DataFrame(input_data, columns=feature_names)
-
-    input_scaled = scaler.transform(input_df)
+    input_scaled = scaler.transform(input_data)
 
 
-    # ------------------------------
-    # Predict Probability
-    # ------------------------------
+    # Predict PD
 
     pd_model = model.predict_proba(input_scaled)[0][1]
 
@@ -171,36 +148,31 @@ if st.button("Predict Credit Risk"):
 
 
     # ------------------------------
-    # Credit Score Conversion
+    # Credit Score
     # ------------------------------
 
-    score = int(300 + (1 - pd_prob) * 600)
-
-    score = max(300, min(900, score))
+    score = int(300 + (1 - pd_prob) * 550)
 
 
     # ------------------------------
-    # Decision Rules
+    # Risk Decision
     # ------------------------------
 
     if score >= 720:
-
         decision = "Approved"
         risk = "Low Risk"
 
     elif score >= 600:
-
         decision = "Conditional Approval"
         risk = "Medium Risk"
 
     else:
-
         decision = "Declined"
         risk = "High Risk"
 
 
     # ------------------------------
-    # Display Results
+    # Results
     # ------------------------------
 
     st.markdown("---")
@@ -209,15 +181,8 @@ if st.button("Predict Credit Risk"):
 
     col1, col2 = st.columns(2)
 
-    col1.metric(
-        "Probability of Default",
-        f"{pd_prob:.2%}"
-    )
-
-    col2.metric(
-        "Credit Score",
-        score
-    )
+    col1.metric("Probability of Default", f"{pd_prob:.2%}")
+    col2.metric("Credit Score", score)
 
     st.write(f"Risk Category: **{risk}**")
 
@@ -225,9 +190,89 @@ if st.button("Predict Credit Risk"):
 
 
     # ------------------------------
-    # Model Info
+    # Risk Gauge
     # ------------------------------
 
-    st.caption(
-        "Model: Logistic Regression | AUC ≈ 0.85 | KS ≈ 0.54"
-    )
+    st.markdown("### Risk Gauge")
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=pd_prob * 100,
+        title={'text': "Probability of Default (%)"},
+        gauge={
+            'axis': {'range': [0, 100]},
+            'bar': {'color': "red"},
+            'steps': [
+                {'range': [0, 10], 'color': "green"},
+                {'range': [10, 25], 'color': "yellow"},
+                {'range': [25, 100], 'color': "red"}
+            ]
+        }
+    ))
+
+    st.plotly_chart(fig)
+
+
+    # ------------------------------
+    # Feature Importance
+    # ------------------------------
+
+    st.subheader("Top Risk Factors")
+
+    importance = model.coef_[0]
+
+    feature_names = [
+        "Total_Delinquency",
+        "Credit_Utilization",
+        "Late_30",
+        "Age",
+        "Income_Per_Dependent",
+        "Monthly_Income",
+        "Debt_Ratio",
+        "DTI_Ratio",
+        "Open_Loans",
+        "Credit_Burden",
+        "Dependents"
+    ]
+
+    importance_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Impact": importance
+    }).sort_values("Impact", ascending=False)
+
+    st.bar_chart(importance_df.set_index("Feature"))
+
+
+    # ------------------------------
+    # Portfolio Risk Simulator
+    # ------------------------------
+
+    st.subheader("Portfolio Risk Simulation")
+
+    loan_amount = st.slider("Loan Amount ($)", 1000, 100000, 10000)
+
+    lgd = 0.45
+
+    ead = loan_amount
+
+    expected_loss = pd_prob * lgd * ead
+
+    st.write(f"Expected Credit Loss: ${expected_loss:,.2f}")
+
+
+    # ------------------------------
+    # Model Confidence
+    # ------------------------------
+
+    confidence = (1 - pd_prob) * 100
+
+    st.metric("Model Confidence", f"{confidence:.1f}%")
+
+
+# ------------------------------
+# Footer
+# ------------------------------
+
+st.markdown("---")
+
+st.caption("Model: Logistic Regression | AUC ≈ 0.85 | KS ≈ 0.54")
