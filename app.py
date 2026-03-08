@@ -54,7 +54,7 @@ model, scaler = load_model()
 
 
 # ------------------------------
-# Inputs
+# Borrower Inputs
 # ------------------------------
 
 age = st.slider("Age", 18, 80, 35)
@@ -101,12 +101,10 @@ dependents = st.number_input(
 
 
 # ------------------------------
-# Prediction
+# Prediction Button
 # ------------------------------
 
 if st.button("Predict Credit Risk"):
-
-    # Feature engineering
 
     total_delinquency = late_30 + (2 * late_60) + (3 * late_90)
 
@@ -115,9 +113,6 @@ if st.button("Predict Credit Risk"):
     dti_ratio = debt_ratio
 
     credit_burden = credit_utilization * debt_ratio
-
-
-    # Feature order must match training
 
     input_data = np.array([[
 
@@ -135,45 +130,34 @@ if st.button("Predict Credit Risk"):
 
     ]])
 
-    # Scale features
-
     input_scaled = scaler.transform(input_data)
-
-
-    # Predict PD
 
     pd_model = model.predict_proba(input_scaled)[0][1]
 
     pd_prob = prior_correction(pd_model)
 
+    st.session_state["pd_prob"] = pd_prob
 
-    # ------------------------------
-    # Credit Score
-    # ------------------------------
+
+# ------------------------------
+# Display Results
+# ------------------------------
+
+if "pd_prob" in st.session_state:
+
+    pd_prob = st.session_state["pd_prob"]
 
     score = int(300 + (1 - pd_prob) * 550)
-
-
-    # ------------------------------
-    # Risk Decision
-    # ------------------------------
 
     if score >= 720:
         decision = "Approved"
         risk = "Low Risk"
-
     elif score >= 600:
         decision = "Conditional Approval"
         risk = "Medium Risk"
-
     else:
         decision = "Declined"
         risk = "High Risk"
-
-
-    # ------------------------------
-    # Results
-    # ------------------------------
 
     st.markdown("---")
 
@@ -185,7 +169,6 @@ if st.button("Predict Credit Risk"):
     col2.metric("Credit Score", score)
 
     st.write(f"Risk Category: **{risk}**")
-
     st.write(f"Decision: **{decision}**")
 
 
@@ -249,10 +232,15 @@ if st.button("Predict Credit Risk"):
 
     st.subheader("Portfolio Risk Simulation")
 
-    loan_amount = st.slider("Loan Amount ($)", 1000, 100000, 10000)
+    loan_amount = st.slider(
+        "Loan Amount ($)",
+        1000,
+        100000,
+        10000,
+        step=500
+    )
 
     lgd = 0.45
-
     ead = loan_amount
 
     expected_loss = pd_prob * lgd * ead
