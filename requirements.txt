@@ -2,8 +2,4 @@ streamlit
 numpy
 pandas
 scikit-learn==1.6.1
-shap
-imbalanced-learn
-matplotlib
-seaborn
 plotly
