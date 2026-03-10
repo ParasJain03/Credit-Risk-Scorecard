@@ -1,4 +1,3 @@
-![Credit Risk Scorecard](credit-risk-social-preview-1280x640.png)
 ![Python](https://img.shields.io/badge/Python-3.10-blue)
 ![Machine Learning](https://img.shields.io/badge/Machine%20Learning-Scikit--Learn-orange)
 ![Finance](https://img.shields.io/badge/Domain-Credit%20Risk-green)
